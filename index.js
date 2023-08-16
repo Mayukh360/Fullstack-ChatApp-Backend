@@ -2,9 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const sequelize = require("./database/database");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
 const User = require("./models/user");
-const Chat= require("./models/chat")
+const Chat = require("./models/chat");
 const authController = require("./controller/authcontroller");
 
 const app = express();
@@ -35,30 +34,41 @@ app.use((req, res, next) => {
 app.post("/signup", authController.signup);
 app.post("/login", authController.login);
 
-app.post("/chats",async(req,res)=>{
+app.post("/chats", async (req, res) => {
   console.log(req.body);
-  try{
-    if(!req.user){
-      res.status(401).json({error:"Invalid User"})
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: "Invalid User" });
     }
-    const {message}= req.body;
-    const newChat= await Chat.create({
-      userId:req.user.Id,
-      message:message
-    })
+    const { message } = req.body;
+    console.log(req.user.dataValues.id);
+    const newChat = await Chat.create({
+      userId:req.user.dataValues.id,
+      message: message,
+    });
 
-    res.status(201).json({data:newChat})
-  }
-  catch(err){
-    console.error(error);
+    res.status(201).json({ data: newChat });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Internal server error" });
   }
-  
-})
+});
 
+app.get("/getAllMessage", async (req, res) => {
+  console.log(req.user)
+  try {
+    const message = await Chat.findAll({
+      attributes: ["message", "userId","id"],
+      include:[{model:User, attributes:["name"]}]
+    });
+    res.status(201).json({data:message})
+  } catch (err) {
+    res.status(500).json({error:err})
+  }
+});
 
 User.hasMany(Chat);
-Chat.belongsTo(User)
+Chat.belongsTo(User);
 
 sequelize
   .sync()

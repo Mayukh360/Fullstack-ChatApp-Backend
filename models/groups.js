@@ -15,7 +15,7 @@ const Groups = sequelize.define("groups", {
   phonenumber: {
     type: Sequelize.DOUBLE,
     allowNull: false,
-    unique: true,
+   
   },
 });
 

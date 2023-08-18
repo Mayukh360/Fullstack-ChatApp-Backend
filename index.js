@@ -70,10 +70,11 @@ app.get("/getAllMessage", async (req, res) => {
 });
 
 app.post("/creategroup", async (req, res) => {
+  console.log("USER", req.user);
   try {
     const { groupname } = req.body;
-    const userId = req.user.dataValues.id; 
-    const phonenumber = req.user.phonenumber;
+    const userId = req.user.dataValues.id;
+    const phonenumber = req.user.dataValues.phonenumber;
 
     const group = await Groups.create({
       groupname: groupname,
@@ -85,6 +86,7 @@ app.post("/creategroup", async (req, res) => {
 
     res.status(201).json({ data: group });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ error: err });
   }
 });
@@ -99,7 +101,7 @@ app.get("/admingroups", async (req, res) => {
 
     // Retrieve group names where userId matches
     const groups = await Groups.findAll({
-      attributes: ["groupname","id"],
+      attributes: ["groupname", "id"],
       where: {
         userId: userId,
       },
@@ -111,6 +113,42 @@ app.get("/admingroups", async (req, res) => {
   }
 });
 
+app.post("/addmember", async (req, res) => {
+  try {
+    const { phonenumber, groupId } = req.body;
+
+    // Find the user based on the phone number
+    const user = await User.findOne({
+      where: {
+        phonenumber: phonenumber,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Find the group based on the groupId
+    const group = await Groups.findByPk(groupId);
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    // Associate the user with the group in the Usergroups table
+    const usergroup = await Usergroups.create({
+      userId: user.id,
+      groupId: groupId,
+    });
+
+    res.status(200).json({
+      message: `${phonenumber} added to the group ${group.groupname}`,
+      data: usergroup, // Optional: Send the created Usergroup data in the response
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err });
+  }
+});
 
 
 User.hasMany(Chat);

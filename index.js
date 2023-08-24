@@ -7,10 +7,16 @@ const Chat = require("./models/chat");
 const authController = require("./controller/authcontroller");
 const Groups = require("./models/groups");
 const Usergroups = require("./models/usergroup");
+const http = require("http"); 
+const socket=require('socket.io')
+
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+const server = http.createServer(app);
+const io = new socket.Server(server,{cors:{origin:'*'}})
+
 
 app.use((req, res, next) => {
   const token = req.headers.authorization;
@@ -36,28 +42,69 @@ app.use((req, res, next) => {
 app.post("/signup", authController.signup);
 app.post("/login", authController.login);
 
-app.post("/chats", async (req, res) => {
-  console.log(req.body);
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: "Invalid User" });
-    }
-    const { message } = req.body;
-    console.log(req.user.dataValues.id);
-    const newChat = await Chat.create({
-      userId: req.user.dataValues.id,
-      message: message,
-    });
+io.on("connection", (socket) => {
+  console.log("A user connected: " + socket.id);
 
-    res.status(201).json({ data: newChat });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
-  }
+  socket.on("sendMessage", async (data) => {
+    console.log(data); // The data object containing message and userId
+
+    try {
+      const user = await User.findByPk(data.userId);
+
+      if (!user) {
+        console.log("User not found");
+        return;
+      }
+
+      const newMessage = await Chat.create({
+        message: data.message,
+        userId: data.userId,
+      });
+
+      const messageWithUser = {
+        message: newMessage.message,
+        userId: newMessage.userId,
+        id:newMessage.id,
+        user: {name: user.name, // Include relevant user properties
+          // ... Include other user properties as needed
+        }
+      };
+
+      console.log("newMessage", messageWithUser);
+
+      // Broadcast the new message with user to all connected clients
+      io.emit("newMessage", messageWithUser);
+    } catch (error) {
+      console.error(error);
+    }
+  });
 });
 
+
+
+
+// app.post("/chats", async (req, res) => {
+//   console.log(req.body);
+//   try {
+//     if (!req.user) {
+//       res.status(401).json({ error: "Invalid User" });
+//     }
+//     const { message } = req.body;
+//     console.log(req.user.dataValues.id);
+//     const newChat = await Chat.create({
+//       userId: req.user.dataValues.id,
+//       message: message,
+//     });
+
+//     res.status(201).json({ data: newChat });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// });
+
 app.get("/getAllMessage", async (req, res) => {
-  console.log(req.user);
+  // console.log(req.user);
   try {
     const message = await Chat.findAll({
       attributes: ["message", "userId", "id"],
@@ -70,7 +117,7 @@ app.get("/getAllMessage", async (req, res) => {
 });
 
 app.post("/creategroup", async (req, res) => {
-  console.log("USER", req.user);
+  // console.log("USER", req.user);
   try {
     const { groupname } = req.body;
     const userId = req.user.dataValues.id;
@@ -170,7 +217,7 @@ sequelize
   })
   .then((user) => {
     // console.log(user);
-    app.listen(process.env.PORT || 3000, () => {
+    server.listen(process.env.PORT || 3000, () => {
       console.log("Server running");
     });
   })

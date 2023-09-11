@@ -7,16 +7,14 @@ const Chat = require("./models/chat");
 const authController = require("./controller/authcontroller");
 const Groups = require("./models/groups");
 const Usergroups = require("./models/usergroup");
-const http = require("http"); 
-const socket=require('socket.io')
-
+const http = require("http");
+const socket = require("socket.io");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 const server = http.createServer(app);
-const io = new socket.Server(server,{cors:{origin:'*'}})
-
+const io = new socket.Server(server, { cors: { origin: "*" } });
 
 app.use((req, res, next) => {
   const token = req.headers.authorization;
@@ -64,10 +62,11 @@ io.on("connection", (socket) => {
       const messageWithUser = {
         message: newMessage.message,
         userId: newMessage.userId,
-        id:newMessage.id,
-        user: {name: user.name, // Include relevant user properties
+        id: newMessage.id,
+        user: {
+          name: user.name, // Include relevant user properties
           // ... Include other user properties as needed
-        }
+        },
       };
 
       console.log("newMessage", messageWithUser);
@@ -79,29 +78,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
-
-
-
-// app.post("/chats", async (req, res) => {
-//   console.log(req.body);
-//   try {
-//     if (!req.user) {
-//       res.status(401).json({ error: "Invalid User" });
-//     }
-//     const { message } = req.body;
-//     console.log(req.user.dataValues.id);
-//     const newChat = await Chat.create({
-//       userId: req.user.dataValues.id,
-//       message: message,
-//     });
-
-//     res.status(201).json({ data: newChat });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
 
 app.get("/getAllMessage", async (req, res) => {
   // console.log(req.user);
@@ -191,6 +167,31 @@ app.post("/addmember", async (req, res) => {
       message: `${phonenumber} added to the group ${group.groupname}`,
       data: usergroup, // Optional: Send the created Usergroup data in the response
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err });
+  }
+});
+app.get("/getallgroup", async (req, res) => {
+  try {
+    const userGroups = await Usergroups.findAll({
+      include: [
+        { model: User, attributes: ["name"] },
+        { model: Groups, attributes: ["groupname"] },
+      ],
+    });
+    console.log(userGroups)
+
+    const groupData = userGroups.map((usergroup) => {
+      return {
+        userId: usergroup.userId,
+        groupId: usergroup.groupId,
+        userName: usergroup.dataValues.user.name,
+        groupName: usergroup.dataValues.group.groupname,
+      };
+    });
+  
+    res.status(200).json({ data: groupData });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err });
